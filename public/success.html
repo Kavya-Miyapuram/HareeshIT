@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registration Successful – Hareesh IT Industry</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Hareesh IT Industry</h1>
+  <p>Cricket Team Registration</p>
+</header>
+<main>
+  <div class="card center">
+    <div class="tick">&#10003;</div>
+    <h2>Registration Successful</h2>
+    <p>Your details and payment reference have been received. Your payment will be verified by the organiser, and we will contact you once your registration is confirmed.</p>
+    <div id="ref" class="payid hidden"></div>
+    <a class="btn" href="/">Register another student</a>
+  </div>
+</main>
+<script>
+const ref = new URLSearchParams(location.search).get('ref');
+if (ref) { const el = document.getElementById('ref'); el.textContent = 'Transaction ID: ' + ref; el.classList.remove('hidden'); }
+</script>
+</body>
+</html>

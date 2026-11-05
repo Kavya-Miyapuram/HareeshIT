@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin – Hareesh IT Industry</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Hareesh IT Industry</h1>
+  <p>Admin Panel – Cricket Team Registrations</p>
+</header>
+
+<main id="loginView">
+  <div class="card">
+    <form id="loginForm">
+      <label for="key">Admin Key</label>
+      <input id="key" type="password" required autocomplete="current-password" placeholder="Enter admin key">
+      <button type="submit">Login</button>
+      <div id="err" class="msg"></div>
+    </form>
+  </div>
+</main>
+
+<main id="dataView" class="wide hidden">
+  <div class="card">
+    <div class="top">
+      <div>
+        <span class="stat">Verified: <b id="total">0</b></span>
+        <span class="stat">Awaiting verification: <b id="pending">0</b></span>
+        <span class="stat">Collected: <b id="collected">0</b></span>
+        <span class="stat" id="byYear"></span>
+      </div>
+      <button id="logout" class="link" type="button">Logout</button>
+    </div>
+    <div class="hint">Check each Transaction ID in your UPI app / bank statement (amount and ID must match), then click Verify.</div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>#</th><th>Name</th><th>Contact</th><th>Email</th><th>College</th><th>Year</th><th>Transaction ID</th><th>Payment</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentKey = '';
+
+async function api(path, method) {
+  return fetch(path, { method: method || 'GET', headers: { 'x-admin-key': currentKey } });
+}
+
+async function load(key) {
+  currentKey = key;
+  const res = await api('/api/students');
+  if (!res.ok) throw new Error('Invalid admin key.');
+  const { total, pending, collected, students } = await res.json();
+  $('total').textContent = total;
+  $('pending').textContent = pending;
+  $('collected').textContent = '\u20B9' + collected;
+  $('byYear').textContent = [1, 2, 3, 4].map(y =>
+    'Y' + y + ': ' + students.filter(s => s.year === y && s.status === 'paid').length).join('  |  ');
+
+  const tbody = $('rows');
+  tbody.innerHTML = '';
+  students.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    [i + 1, s.name, s.contact, s.email, s.college, s.year, s.utr || '-',
+     s.status === 'paid' ? 'Verified' : 'Awaiting', new Date(s.registeredAt).toLocaleString()
+    ].forEach((v, idx) => {
+      const td = document.createElement('td'); td.textContent = v;
+      if (idx === 7) td.className = s.status === 'paid' ? 'paid' : 'pend';
+      tr.appendChild(td);
+    });
+    const act = document.createElement('td');
+    const box = document.createElement('div'); box.className = 'noshrink';
+    if (s.status !== 'paid') {
+      const ok = document.createElement('button');
+      ok.type = 'button'; ok.className = 'verify'; ok.textContent = 'Verify';
+      ok.addEventListener('click', () => verifyStudent(s));
+      box.appendChild(ok);
+    }
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'del'; del.textContent = 'Delete';
+    del.addEventListener('click', () => removeStudent(s));
+    box.appendChild(del);
+    act.appendChild(box); tr.appendChild(act);
+    tbody.appendChild(tr);
+  });
+  $('loginView').classList.add('hidden');
+  $('dataView').classList.remove('hidden');
+}
+
+async function verifyStudent(s) {
+  if (!confirm('Mark payment of ' + s.name + ' (ID ' + s.utr + ') as verified?')) return;
+  const res = await api('/api/students/' + s.id + '/verify', 'PATCH');
+  if (!res.ok) { alert('Could not verify. Please try again.'); return; }
+  load(currentKey);
+}
+
+async function removeStudent(s) {
+  if (!confirm('Delete registration of ' + s.name + '? This cannot be undone.')) return;
+  const res = await api('/api/students/' + s.id, 'DELETE');
+  if (!res.ok) { alert('Could not delete. Please try again.'); return; }
+  load(currentKey);
+}
+
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('err').textContent = '';
+  try {
+    await load($('key').value);
+    sessionStorage.setItem('adminKey', $('key').value);
+  } catch (err) { $('err').textContent = err.message; }
+});
+
+$('logout').addEventListener('click', () => {
+  sessionStorage.removeItem('adminKey');
+  location.reload();
+});
+
+const saved = sessionStorage.getItem('adminKey');
+if (saved) load(saved).catch(() => sessionStorage.removeItem('adminKey'));
+</script>
+</body>
+</html>

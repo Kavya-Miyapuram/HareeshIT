@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hareesh IT Industry – Cricket Team Registration</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <a class="admin-btn" href="/admin.html">Admin Login</a>
+  <h1>Hareesh IT Industry</h1>
+  <p>Cricket Team Registration for Engineering Students</p>
+</header>
+<main>
+  <div class="card">
+    <form id="form">
+
+      <div id="step1">
+        <label for="name">Name</label>
+        <input id="name" name="name" required maxlength="80" placeholder="Full name">
+
+        <label for="contact">Contact</label>
+        <input id="contact" name="contact" required pattern="[6-9][0-9]{9}" maxlength="10" inputmode="numeric" placeholder="10-digit mobile number">
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required placeholder="you@example.com">
+
+        <label for="college">College Name</label>
+        <input id="college" name="college" required maxlength="120" placeholder="Your college">
+
+        <label for="year">Engineering Year</label>
+        <select id="year" name="year" required>
+          <option value="" disabled selected>Select year</option>
+          <option value="1">1st Year</option>
+          <option value="2">2nd Year</option>
+          <option value="3">3rd Year</option>
+          <option value="4">4th Year</option>
+        </select>
+
+        <div class="fee">Registration fee: <b id="fee">...</b></div>
+        <button id="next" type="button">Next: Payment</button>
+      </div>
+
+      <div id="step2" class="hidden">
+        <div class="pay-amt">Pay <span id="amt"></span></div>
+        <img id="qr" class="qr" alt="UPI QR code">
+        <div class="upi-row">
+          <span>UPI ID:</span><code id="upiId"></code>
+          <button id="copy" type="button" class="ghost">Copy</button>
+        </div>
+        <a id="payapp" class="linkbtn hidden" href="#">Pay with UPI app</a>
+
+        <ol class="steps">
+          <li>Scan the QR code with any UPI app (or pay to the UPI ID above).</li>
+          <li>Pay the exact amount shown.</li>
+          <li>Enter the transaction ID from your payment app below and submit.</li>
+        </ol>
+
+        <label for="utr">UPI Transaction ID / UTR</label>
+        <input id="utr" name="utr" maxlength="25" pattern="[A-Za-z0-9]{10,25}" placeholder="e.g. 412345678901">
+        <div class="hint">Shown in your payment app after paying (usually 12 digits).</div>
+
+        <button id="submit" type="submit">Submit Registration</button>
+        <button id="back" type="button" class="link" style="margin-top:12px">&larr; Back to details</button>
+      </div>
+
+      <div id="msg" class="msg"></div>
+    </form>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let info = null;
+
+fetch('/api/payment-info').then(r => r.json()).then(i => {
+  if (i.error) throw new Error(i.error);
+  info = i;
+  $('fee').textContent = '\u20B9' + i.fee;
+  $('amt').textContent = '\u20B9' + i.fee;
+  $('qr').src = i.qr;
+  $('upiId').textContent = i.upiId;
+  if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    $('payapp').href = i.link;
+    $('payapp').classList.remove('hidden');
+  }
+}).catch(err => { $('msg').textContent = err.message; });
+
+$('next').addEventListener('click', () => {
+  const fields = [...$('step1').querySelectorAll('input, select')];
+  if (!fields.every(f => f.reportValidity())) return;
+  if (!info) { $('msg').textContent = 'Payment details are not available right now. Please try again later.'; return; }
+  $('msg').textContent = '';
+  $('step1').classList.add('hidden');
+  $('step2').classList.remove('hidden');
+  $('utr').required = true;
+  window.scrollTo(0, 0);
+});
+
+$('back').addEventListener('click', () => {
+  $('msg').textContent = '';
+  $('step2').classList.add('hidden');
+  $('step1').classList.remove('hidden');
+  $('utr').required = false;
+});
+
+$('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(info.upiId); $('copy').textContent = 'Copied'; }
+  catch { $('copy').textContent = 'Select & copy'; }
+  setTimeout(() => { $('copy').textContent = 'Copy'; }, 1800);
+});
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('submit');
+  btn.disabled = true; $('msg').textContent = '';
+  const body = Object.fromEntries(new FormData(e.target));
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    window.location.href = '/success.html?ref=' + encodeURIComponent(body.utr.trim().toUpperCase());
+  } catch (err) {
+    $('msg').textContent = err.message;
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
